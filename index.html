@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Para Ti ❤️</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: radial-gradient(circle at 50% 62%, #1b0c2e 0%, #090612 52%, #030307 100%);
+      font-family: "Trebuchet MS", "Segoe UI", cursive, sans-serif;
+      user-select: none;
+      touch-action: none;
+    }
+
+    canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    .Para_Ti {
+      position: fixed;
+      top: 25%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 3;
+      text-align: center;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 1.4s ease, transform 1.4s ease;
+    }
+
+    .Para_Ti.visible {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    .Para_Ti h1 {
+      font-size: clamp(2rem, 5.2vw, 3.6rem);
+      color: #ffffff;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-shadow:
+        0 0 10px rgba(255, 255, 255, 0.9),
+        0 0 24px rgba(255, 115, 190, 0.85),
+        0 0 45px rgba(160, 90, 255, 0.75);
+    }
+
+    .music-btn {
+      position: fixed;
+      bottom: 18px;
+      right: 18px;
+      z-index: 10;
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      backdrop-filter: blur(10px);
+      padding: 10px 15px;
+      border-radius: 999px;
+      font-size: 0.88rem;
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+
+    .music-btn:hover {
+      background: rgba(255, 115, 190, 0.28);
+      transform: scale(1.04);
+    }
+
+    .hint {
+      position: fixed;
+      bottom: 18px;
+      left: 18px;
+      z-index: 10;
+      color: rgba(255, 255, 255, 0.55);
+      font-size: 0.78rem;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="galaxyCanvas"></canvas>
+
+  <div id="loveTitle" class="Para_Ti">
+    <h1>Te amo,y no hay dia que te extrañe y noche que llore tu partida </h1>
+  </div>
+
+  <div class="hint">Arrastra para girar ✨</div>
+
+  <!-- Apartado de música -->
+  <audio id="bgMusic" loop preload="auto">
+    <source src="12345.mp3" type="audio/mpeg" />
+  </audio>
+
+  <button id="musicBtn" class="music-btn" type="button">
+    🔊 Activar música
+  </button>
+
+  <script>
+    const canvas = document.getElementById("galaxyCanvas");
+    const ctx = canvas.getContext("2d");
+    const loveTitle = document.getElementById("loveTitle");
+
+    let w = 0, h = 0, dpr = 1;
+    let rotX = 0.22;
+    let rotY = 0;
+    let targetRotX = 0.22;
+    let targetRotY = 0;
+    let isDragging = false;
+    let lastX = 0, lastY = 0;
+    const startTime = performance.now();
+
+    function resize() {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      w = window.innerWidth;
+      h = window.innerHeight;
+      canvas.width = Math.floor(w * dpr);
+      canvas.height = Math.floor(h * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    window.addEventListener("resize", resize);
+    resize();
+
+    // Control táctil y con mouse para mover la galaxia
+    canvas.addEventListener("pointerdown", (e) => {
+      isDragging = true;
+      lastX = e.clientX;
+      lastY = e.clientY;
+    });
+
+    window.addEventListener("pointermove", (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - lastX;
+      const dy = e.clientY - lastY;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      targetRotY += dx * 0.006;
+      targetRotX = Math.max(-0.65, Math.min(0.75, targetRotX + dy * 0.004));
+    });
+
+    window.addEventListener("pointerup", () => {
+      isDragging = false;
+    });
+
+    // 1. Estrellas de fondo
+    const bgStars = Array.from({ length: 340 }, () => ({
+      x: Math.random(),
+      y: Math.random(),
+      r: Math.random() * 1.5 + 0.3,
+      phase: Math.random() * Math.PI * 2,
+      speed: Math.random() * 0.03 + 0.01
+    }));
+
+    // 2. Estrellas fugaces
+    const shootingStars = [];
+    function spawnShootingStar() {
+      shootingStars.push({
+        x: Math.random() * w * 0.8 + w * 0.1,
+        y: Math.random() * h * 0.35,
+        vx: -(Math.random() * 7 + 7),
+        vy: Math.random() * 3.5 + 2.5,
+        life: 1,
+        decay: Math.random() * 0.018 + 0.014
+      });
+    }
+
+    // 3. Galaxia espiral inferior
+    const galaxyParticles = [];
+    const arms = 4;
+    const galaxyCount = 950;
+    for (let i = 0; i < galaxyCount; i++) {
+      const radius = Math.pow(Math.random(), 0.72) * 230;
+      const armAngle = ((i % arms) / arms) * Math.PI * 2;
+      const spin = radius * 0.032;
+      const spread = (Math.random() - 0.5) * (0.45 + radius * 0.002);
+      const angle = armAngle + spin + spread;
+      const yOffset = (Math.random() - 0.5) * (18 * (1 - radius / 260));
+      const palette = [
+        "255, 255, 255",
+        "255, 175, 225",
+        "195, 155, 255",
+        "150, 210, 255"
+      ];
+      galaxyParticles.push({
+        radius,
+        angle,
+        yOffset,
+        size: Math.random() * 1.8 + 0.5,
+        alpha: Math.random() * 0.75 + 0.25,
+        color: palette[i % palette.length]
+      });
+    }
+
+    // 4. Corazón brillante superior formado por partículas
+    const heartParticles = [];
+    const heartCount = 460;
+    for (let i = 0; i < heartCount; i++) {
+      const t = (Math.PI * 2 * i) / heartCount;
+      const hx = 16 * Math.pow(Math.sin(t), 3);
+      const hy = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+      const jitter = (Math.random() - 0.5) * 1.1;
+      const depth = (Math.random() - 0.5) * 28;
+      heartParticles.push({
+        bx: hx + jitter,
+        by: hy + jitter,
+        bz: depth,
+        size: Math.random() * 1.8 + 0.65,
+        twinkle: Math.random() * Math.PI * 2,
+        pinkMix: Math.random()
+      });
+    }
+
+    // 5. Frases e íconos flotantes alrededor (personaliza aquí tus frases e imágenes)
+    // Si quieres poner fotos reales, agrega `img: "foto00.jpeg"` a cada objeto.
+    const floatingItems = [
+      { text: "Mi Amor", img: "foto00.jpeg",angle: 0.2, radiusX: 250, radiusY: 75, yBase: -15, speed: 0.0045 },
+      { text: "Eres mi sol", img: "foto01.jpeg", angle: 1.1, radiusX: 280, radiusY: 85, yBase: 25, speed: 0.004 },
+      { text: "Me encantas", img: "foto02.jpeg", angle: 2.0, radiusX: 240, radiusY: 70, yBase: 55, speed: 0.005 },
+      { text: "Eres preciosa", img: "foto03.jpeg", angle: 2.9, radiusX: 270, radiusY: 80, yBase: 10, speed: 0.0042 },
+      { text: "Amor de mi vida", img: "foto04.jpeg", angle: 3.8, radiusX: 260, radiusY: 78, yBase: -35, speed: 0.0046 },
+      { text: "Te adoro", img: "foto05.jpeg", angle: 4.7, radiusX: 230, radiusY: 68, yBase: 40, speed: 0.0048 },
+      { text: "Siempre juntos", img: "foto06.jpeg", angle: 5.5, radiusX: 265, radiusY: 75, yBase: -5, speed: 0.0043 }
+    ];
+
+    const loadedImages = {};
+    floatingItems.forEach((item, idx) => {
+      if (item.img) {
+        const image = new Image();
+        image.src = item.img;
+        image.onload = () => {
+          loadedImages[idx] = image;
+        };
+      }
+    });
+
+    function drawBackgroundStars(now) {
+      for (const s of bgStars) {
+        s.phase += s.speed;
+        const alpha = 0.25 + 0.75 * (0.5 + 0.5 * Math.sin(s.phase));
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha.toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(s.x * w, s.y * h, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      if (Math.random() < 0.012 && shootingStars.length < 3) {
+        spawnShootingStar();
+      }
+
+      for (let i = shootingStars.length - 1; i >= 0; i--) {
+        const st = shootingStars[i];
+        st.x += st.vx;
+        st.y += st.vy;
+        st.life -= st.decay;
+
+        if (st.life <= 0) {
+          shootingStars.splice(i, 1);
+          continue;
+        }
+
+        const grad = ctx.createLinearGradient(st.x, st.y, st.x - st.vx * 5, st.y - st.vy * 5);
+        grad.addColorStop(0, `rgba(255, 255, 255, ${st.life})`);
+        grad.addColorStop(1, "rgba(255, 255, 255, 0)");
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(st.x, st.y);
+        ctx.lineTo(st.x - st.vx * 5, st.y - st.vy * 5);
+        ctx.stroke();
+      }
+    }
+
+    function drawGalaxy(elapsed, progress) {
+      const scaleFactor = Math.min(w, h) / 680;
+      const gx = w * 0.5;
+      const gy = h * 0.67;
+
+      // Resplandor central de la galaxia
+      const coreGlow = ctx.createRadialGradient(gx, gy, 2, gx, gy, 150 * scaleFactor);
+      coreGlow.addColorStop(0, `rgba(255, 240, 255, ${0.75 * progress})`);
+      coreGlow.addColorStop(0.35, `rgba(215, 130, 255, ${0.28 * progress})`);
+      coreGlow.addColorStop(0.75, `rgba(95, 70, 210, ${0.1 * progress})`);
+      coreGlow.addColorStop(1, "rgba(0, 0, 0, 0)");
+      ctx.fillStyle = coreGlow;
+      ctx.beginPath();
+      ctx.arc(gx, gy, 150 * scaleFactor, 0, Math.PI * 2);
+      ctx.fill();
+
+      const spinSpeed = elapsed * 0.00055 + rotY * 0.5;
+      const tiltY = Math.cos(rotX);
+
+      for (const p of galaxyParticles) {
+        const a = p.angle + spinSpeed;
+        const px = gx + Math.cos(a) * p.radius * scaleFactor;
+        const py = gy + Math.sin(a) * p.radius * 0.36 * tiltY * scaleFactor + p.yOffset * scaleFactor;
+        const depthScale = 0.75 + 0.35 * ((Math.sin(a) + 1) * 0.5);
+
+        ctx.fillStyle = `rgba(${p.color}, ${(p.alpha * progress).toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(px, py, p.size * depthScale * scaleFactor, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function drawHeart(elapsed, progress) {
+      if (progress <= 0) return;
+      const scale = Math.min(w, h) * 0.0115 * progress;
+      const pulse = 1 + Math.sin(elapsed * 0.0032) * 0.04;
+      const hxCenter = w * 0.5;
+      const hyCenter = h * 0.25;
+
+      // Halo suave detrás del corazón
+      const aura = ctx.createRadialGradient(hxCenter, hyCenter, 10, hxCenter, hyCenter, 190 * scale * 0.08);
+      aura.addColorStop(0, `rgba(255, 120, 195, ${0.24 * progress})`);
+      aura.addColorStop(1, "rgba(255, 120, 195, 0)");
+      ctx.fillStyle = aura;
+      ctx.beginPath();
+      ctx.arc(hxCenter, hyCenter, 190 * scale * 0.08, 0, Math.PI * 2);
+      ctx.fill();
+
+      for (const pt of heartParticles) {
+        pt.twinkle += 0.045;
+        const angleY = rotY * 0.35 + Math.sin(elapsed * 0.001) * 0.15;
+        const cosA = Math.cos(angleY);
+        const sinA = Math.sin(angleY);
+
+        const rx = pt.bx * cosA - pt.bz * sinA;
+        const rz = pt.bx * sinA + pt.bz * cosA;
+        const perspective = 1 + rz * 0.008;
+
+        const x = hxCenter + rx * scale * pulse * perspective;
+        const y = hyCenter + pt.by * scale * pulse * perspective;
+        const twinkleAlpha = (0.55 + 0.45 * Math.sin(pt.twinkle)) * progress;
+
+        const r = pt.pinkMix > 0.35 ? 255 : 235;
+        const g = pt.pinkMix > 0.35 ? 165 : 210;
+        const b = pt.pinkMix > 0.35 ? 220 : 255;
+
+        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${twinkleAlpha.toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(x, y, pt.size * perspective, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function drawFloatingItems(progress) {
+      if (progress <= 0) return;
+      const scaleFactor = Math.min(w, h) / 680;
+      const centerX = w * 0.5;
+      const centerY = h * 0.56;
+
+      const itemsWithDepth = floatingItems.map((item, idx) => {
+        item.angle += item.speed;
+        const cosA = Math.cos(item.angle + rotY * 0.4);
+        const sinA = Math.sin(item.angle + rotY * 0.4);
+
+        const x = centerX + cosA * item.radiusX * scaleFactor;
+        const y = centerY + sinA * item.radiusY * 0.65 * scaleFactor + item.yBase * scaleFactor;
+        const depth = (sinA + 1) * 0.5; // 0 atrás, 1 adelante
+        const itemScale = (0.72 + depth * 0.42) * scaleFactor;
+        const alpha = (0.45 + depth * 0.55) * progress;
+
+        return { item, idx, x, y, depth, itemScale, alpha };
+      });
+
+      itemsWithDepth.sort((a, b) => a.depth - b.depth);
+
+      for (const obj of itemsWithDepth) {
+        const { item, idx, x, y, itemScale, alpha } = obj;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(itemScale, itemScale);
+        ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+
+        if (loadedImages[idx]) {
+          const size = 46;
+          ctx.beginPath();
+          ctx.roundRect(-size / 2, -size / 2 - 12, size, size, 10);
+          ctx.clip();
+          ctx.drawImage(loadedImages[idx], -size / 2, -size / 2 - 12, size, size);
+          ctx.restore();
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.scale(itemScale, itemScale);
+          ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+        } else {
+          ctx.font = "22px 'Segoe UI Emoji', sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(item.emoji, 0, -10);
+        }
+
+        ctx.font = "600 14px 'Trebuchet MS', sans-serif";
+        ctx.textAlign = "center";
+        ctx.shadowColor = "rgba(255, 120, 195, 0.85)";
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillText(item.text, 0, 12);
+
+        ctx.restore();
+      }
+    }
+
+    function animate(now) {
+      const elapsed = now - startTime;
+      rotX += (targetRotX - rotX) * 0.08;
+      rotY += (targetRotY - rotY) * 0.08;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Progresión gradual inspirada en el video
+      const galaxyProgress = Math.min(1, Math.max(0, (elapsed - 600) / 1400));
+      const heartProgress = Math.min(1, Math.max(0, (elapsed - 1800) / 1600));
+      const itemsProgress = Math.min(1, Math.max(0, (elapsed - 2600) / 1500));
+
+      if (elapsed > 2100) {
+        loveTitle.classList.add("visible");
+      }
+
+      drawBackgroundStars(now);
+      drawGalaxy(elapsed, galaxyProgress);
+      drawHeart(elapsed, heartProgress);
+      drawFloatingItems(itemsProgress);
+
+      requestAnimationFrame(animate);
+    }
+
+    requestAnimationFrame(animate);
+
+    // Apartado de música: intento automático + desbloqueo en primer toque/clic
+    const music = document.getElementById("bgMusic");
+    const musicBtn = document.getElementById("musicBtn");
+    let isPlaying = false;
+
+    function syncButton() {
+      musicBtn.textContent = isPlaying ? "⏸️ Pausar música" : "🔊 Activar música";
+    }
+
+    async function startMusic() {
+      try {
+        await music.play();
+        isPlaying = true;
+        syncButton();
+        return true;
+      } catch (e) {
+        isPlaying = false;
+        syncButton();
+        return false;
+      }
+    }
+
+    window.addEventListener("load", () => {
+      startMusic();
+    });
+
+    function unlockAudio() {
+      if (!isPlaying) {
+        startMusic().then((ok) => {
+          if (ok) {
+            document.removeEventListener("pointerdown", unlockAudio);
+            document.removeEventListener("keydown", unlockAudio);
+          }
+        });
+      }
+    }
+
+    document.addEventListener("pointerdown", unlockAudio);
+    document.addEventListener("keydown", unlockAudio);
+
+    musicBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (isPlaying) {
+        music.pause();
+        isPlaying = false;
+        syncButton();
+      } else {
+        startMusic();
+      }
+    });
+  </script>
+</body>
+</html>
